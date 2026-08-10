@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1A1B1E">
+<title>飲食店マップ｜社内限定</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+<style>
+:root{
+  --ink:#1A1B1E; --sub:#75767C; --line:#E6E4DE; --bg:#F3F2ED; --card:#fff; --field:#F8F7F3;
+  --pa:#E5484D; --pb:#E8890C; --pc:#75767C;
+  --shadow:0 1px 2px rgba(26,27,30,.06),0 16px 32px -18px rgba(26,27,30,.28);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:"IBM Plex Sans JP",-apple-system,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;color:var(--ink);background:var(--bg);font-size:14px}
+button{font-family:inherit;border:none;background:none;cursor:pointer;color:inherit;font-size:inherit}
+#map{position:fixed;inset:0;z-index:1;background:#E4E9F2}
+#map .leaflet-tile{filter:saturate(.82) contrast(1.02)}
+.leaflet-control-attribution{font-size:10px;background:rgba(255,255,255,.85)!important}
+#top{position:fixed;top:0;left:0;right:0;z-index:20;padding:10px 12px 4px;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+#top>*{pointer-events:auto}
+.bar{display:flex;align-items:center;gap:8px}
+.brand{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border:1px solid rgba(26,27,30,.08);border-radius:999px;padding:7px 15px 7px 8px;box-shadow:var(--shadow)}
+.brand .logo{width:29px;height:29px;border-radius:9px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.brand b{font-size:14px;letter-spacing:.06em}
+.brand small{display:block;color:var(--sub);font-size:9.5px;margin-top:-3px;font-weight:600}
+#cnt{margin-left:auto;background:rgba(255,255,255,.92);border:1px solid rgba(26,27,30,.08);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:700;box-shadow:var(--shadow);white-space:nowrap}
+.row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:3px}
+.row::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;background:rgba(255,255,255,.92);border:1px solid rgba(26,27,30,.08);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;color:var(--sub);box-shadow:0 1px 2px rgba(26,27,30,.05)}
+.chip.act{color:#fff;background:var(--ink)}
+.chip.pa.act{background:var(--pa)} .chip.pb.act{background:var(--pb)}
+#searchwrap{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:20;display:flex;gap:8px}
+#search{flex:1;background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border:1px solid rgba(26,27,30,.1);border-radius:14px;padding:12px 14px;font-size:15px;outline:none;box-shadow:var(--shadow)}
+#search:focus{border-color:var(--ink)}
+.pin{width:26px;height:26px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 3px 6px rgba(26,27,30,.35)}
+.leaflet-popup-content-wrapper{border-radius:14px;box-shadow:var(--shadow)}
+.leaflet-popup-content{margin:14px 16px;font-family:inherit;font-size:13px;line-height:1.7;min-width:210px}
+.pp-name{font-weight:700;font-size:14.5px;margin-bottom:2px}
+.pp-tag{display:inline-block;border-radius:6px;font-size:10px;font-weight:700;padding:1px 7px;margin-right:4px}
+.pp-memo{color:var(--sub);font-size:12px;margin-top:4px}
+.pp-btns{display:flex;gap:6px;margin-top:9px}
+.pp-btns a{flex:1;text-align:center;background:var(--ink);color:#fff;border-radius:9px;padding:7px 4px;font-size:12px;font-weight:700;text-decoration:none}
+.pp-btns a.ghost{background:var(--field);color:var(--ink);border:1px solid var(--line)}
+.marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background:rgba(26,27,30,.25)}
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background:rgba(26,27,30,.85);color:#fff;font-weight:700;font-family:inherit}
+#note{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:19;background:rgba(26,27,30,.88);color:#fff;font-size:10.5px;font-weight:600;border-radius:999px;padding:5px 14px;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="top">
+  <div class="bar">
+    <div class="brand"><div class="logo">マ</div><div><b>飲食店マップ</b><small>社内限定・URLの取り扱い注意</small></div></div>
+    <div id="cnt">-</div>
+  </div>
+  <div class="row" id="prefRow"></div>
+  <div class="row" id="areaRow"></div>
+</div>
+<div id="searchwrap"><input id="search" placeholder="店名・住所・ジャンルで検索（例: 居酒屋 / 優先度A）" autocomplete="off"></div>
+<div id="note">© OpenStreetMap contributors ／ 出典: 国土地理院タイル</div>
+<script src="data.js"></script>
+<script>
+"use strict";
+/* 閲覧専用・飲食店マップ（グルぽ営業リスト 9,217店）
+   データ: [都道府県, エリア, 店名, 住所, 緯度, 経度, メモ] */
+const PREF_CENTER = {
+  "大阪府":[34.686,135.520,12], "兵庫県":[34.69,135.19,12], "京都府":[35.005,135.76,12],
+  "奈良県":[34.685,135.83,12], "滋賀県":[35.02,135.87,11], "和歌山県":[34.23,135.17,11], "福岡県":[33.59,130.40,12]
+};
+let pref="大阪府", area="", prio="", q="";
+const map = L.map("map",{zoomControl:false}).setView(PREF_CENTER[pref].slice(0,2), PREF_CENTER[pref][2]);
+L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",{maxZoom:18,attribution:""}).addTo(map);
+const cluster = L.markerClusterGroup({maxClusterRadius:52, disableClusteringAtZoom:17, spiderfyOnMaxZoom:false, showCoverageOnHover:false});
+map.addLayer(cluster);
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function prioOf(memo){ const m=/優先度([ABC])/.exec(memo||""); return m?m[1]:""; }
+const PRIO_COLOR = {A:"#E5484D", B:"#E8890C", C:"#75767C", "":"#75767C"};
+
+function filtered(){
+  const qq=q.toLowerCase();
+  return SHOPS.filter(s=>
+    s[0]===pref && (!area || s[1]===area) &&
+    (!prio || prioOf(s[6])===prio) &&
+    (!qq || (s[2]+s[3]+s[6]).toLowerCase().includes(qq)));
+}
+function render(){
+  const list = filtered();
+  cluster.clearLayers();
+  const markers = list.map(s=>{
+    const c = PRIO_COLOR[prioOf(s[6])];
+    const mk = L.marker([s[4],s[5]], {icon: L.divIcon({className:"", iconSize:[26,26], iconAnchor:[13,22],
+      html:`<div class="pin" style="background:${c}"></div>`})});
+    mk.bindPopup(()=>{
+      const p = prioOf(s[6]);
+      return `<div class="pp-name">${esc(s[2])}</div>
+        ${p?`<span class="pp-tag" style="background:${PRIO_COLOR[p]}1A;color:${PRIO_COLOR[p]}">優先度${p}</span>`:""}
+        <span class="pp-tag" style="background:#EFEEE8;color:#75767C">${esc(s[1])}</span>
+        <div style="font-size:12px;margin-top:4px">${esc(s[3])}</div>
+        <div class="pp-memo">${esc(s[6])}</div>
+        <div class="pp-btns">
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${s[4]},${s[5]}" target="_blank" rel="noopener">ナビ</a>
+          <a class="ghost" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s[4]},${s[5]}" target="_blank" rel="noopener">外観SV</a>
+        </div>`;
+    }, {maxWidth:260});
+    return mk;
+  });
+  cluster.addLayers(markers);
+  document.getElementById("cnt").textContent = list.length.toLocaleString()+" 店";
+}
+function renderPrefRow(){
+  const prefs=[...new Set(SHOPS.map(s=>s[0]))].sort((a,b)=>SHOPS.filter(s=>s[0]===b).length-SHOPS.filter(s=>s[0]===a).length);
+  document.getElementById("prefRow").innerHTML =
+    prefs.map(p=>`<button class="chip ${pref===p?'act':''}" onclick="setPref('${p}')">${p} <small>${SHOPS.filter(s=>s[0]===p).length.toLocaleString()}</small></button>`).join("")
+    + `<span style="width:1px;background:var(--line);margin:3px 2px;flex:0 0 auto"></span>`
+    + [["A","pa"],["B","pb"],["C","pc"]].map(([P,cls])=>`<button class="chip ${cls} ${prio===P?'act':''}" onclick="setPrio('${P}')">優先度${P}</button>`).join("");
+}
+function renderAreaRow(){
+  const areas=[...new Set(SHOPS.filter(s=>s[0]===pref).map(s=>s[1]))].sort();
+  document.getElementById("areaRow").innerHTML =
+    `<button class="chip ${!area?'act':''}" onclick="setArea('')">全エリア</button>`+
+    areas.map(a=>`<button class="chip ${area===a?'act':''}" onclick="setArea('${esc(a)}')">${esc(a)}</button>`).join("");
+}
+function fitToList(){
+  const list=filtered();
+  if(!list.length) return;
+  const b=L.latLngBounds(list.map(s=>[s[4],s[5]]));
+  map.fitBounds(b,{padding:[70,40],maxZoom:15});
+}
+window.setPref=p=>{ pref=p; area=""; renderPrefRow(); renderAreaRow(); render(); const c=PREF_CENTER[p]; if(c) map.setView(c.slice(0,2),c[2]); };
+window.setArea=a=>{ area=a; renderAreaRow(); render(); if(a) fitToList(); };
+window.setPrio=P=>{ prio=(prio===P)?"":P; renderPrefRow(); render(); };
+let sT=null;
+document.getElementById("search").addEventListener("input",e=>{
+  clearTimeout(sT); sT=setTimeout(()=>{ q=e.target.value.trim(); render(); },250);
+});
+renderPrefRow(); renderAreaRow(); render();
+</script>
+</body>
+</html>
